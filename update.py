@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from typing import List
 from datetime import datetime
+import json
 
 # Import required functions
 from display_firebase_data import get_properties_by_url
@@ -10,6 +11,8 @@ from one_listings_page import listings_page
 from two_listings_screenshotter_manual import capture_viewport_screenshots
 from three_listings_screenshotter_agent import run_listings_screenshotter
 from four_all_screenshots_analyzer import analyze_real_estate_images
+from five_property_details_agent import process_property_listing
+from six_property_screenshots_analyzer import analyze_property_details
 from openai_client import client
 
 async def check_property_updates(company_url: str):
@@ -125,6 +128,81 @@ Rules:
                     for idx, prop in enumerate(new_properties, 1):
                         print(f"{idx}. {prop}")
                     print(f"\nFound {len(new_properties)} new properties!")
+                    
+                    # Process each new property
+                    print("\n🏢 Processing new properties...")
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    domain = main_listings_url.split("//")[-1].split("/")[0].replace("www.", "")
+                    results_dir = f"Results/{domain.split('.')[0]}_{timestamp}"
+                    os.makedirs(results_dir, exist_ok=True)
+                    
+                    firebase_uploads = 0
+                    all_properties_data = []
+                    
+                    for idx, property_name in enumerate(new_properties, 1):
+                        print(f"\n=== Processing New Property {idx}/{len(new_properties)} ===")
+                        print(f"📍 Property: {property_name}")
+                        
+                        # Step 1: Get property screenshots using agent
+                        print(f"\n1. Getting screenshots for: {property_name}")
+                        screenshots_result = await process_property_listing(
+                            main_listings_url, 
+                            property_name,
+                            idx  # Pass the property number
+                        )
+                        
+                        print("\n🔍 DEBUG - Screenshot Result:")
+                        print(json.dumps(screenshots_result, indent=2))
+                        
+                        if screenshots_result.get("status") == "error":
+                            print(f"❌ Error taking screenshots: {screenshots_result.get('error', 'Unknown error')}")
+                            continue
+                        
+                        # Step 2: Analyze screenshots and upload to Firebase
+                        print(f"\n2. Analyzing screenshots for: {property_name}")
+                        print(f"Property number: {idx}")
+                        print(f"Property URL: {main_listings_url}")
+                        
+                        print("\n🔍 MOVING TO PROPERTY SCREENSHOT ANALYZER...")
+                        
+                        try:
+                            # Pass property number instead of directory
+                            property_data = await analyze_property_details(
+                                property_number=idx,  # Pass number instead of folder_path
+                                property_url=main_listings_url
+                            )
+                            
+                            if not property_data:
+                                print("❌ No property data returned from analysis")
+                                continue
+                            
+                            # Save results
+                            firebase_uploads += 1
+                            all_properties_data.append(property_data)
+                            
+                            property_file = f"{results_dir}/property_{idx}.json"
+                            with open(property_file, 'w') as f:
+                                json.dump(property_data, f, indent=2)
+                            
+                            print(f"✅ Property {property_name} complete!")
+                            print(f"📄 Data saved to: {property_file}")
+                            print(f"📤 Firebase doc ID: {property_data.get('firebase_doc_id')}")
+                            
+                        except Exception as analysis_error:
+                            print(f"❌ Error analyzing property {property_name}:")
+                            print(f"Error type: {type(analysis_error)}")
+                            print(f"Error message: {str(analysis_error)}")
+                            continue
+                    
+                    # Save final results
+                    all_results_file = f"{results_dir}/all_new_properties.json"
+                    with open(all_results_file, 'w') as f:
+                        json.dump(all_properties_data, f, indent=2)
+                    
+                    print(f"\n=== Final Update Results ===")
+                    print(f"✅ All results saved to: {all_results_file}")
+                    print(f"📊 Processed {len(all_properties_data)} of {len(new_properties)} new properties")
+                    print(f"📤 Uploaded {firebase_uploads} new properties to Firebase")
                 else:
                     print("No new properties found.")
                 return new_properties
