@@ -166,10 +166,10 @@ Rules:
                         print("\n🔍 MOVING TO PROPERTY SCREENSHOT ANALYZER...")
                         
                         try:
-                            # Pass property number instead of directory
+                            # Pass property number and MAIN company URL
                             property_data = await analyze_property_details(
-                                property_number=idx,  # Pass number instead of folder_path
-                                property_url=main_listings_url
+                                property_number=idx,
+                                property_url=company_url  # Pass main company URL instead of listings URL
                             )
                             
                             if not property_data:
