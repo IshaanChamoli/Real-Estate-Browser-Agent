@@ -81,7 +81,7 @@ async def check_property_updates(company_url: str):
             messages=[
                 {
                     "role": "user",
-                    "content": f"""Compare these two lists of properties and identify which properties from List 2 are NEW (not present in List 1).
+                    "content": f"""Compare these two lists of properties and identify which properties from List 2 are NEW (not present in List 1). Some properties on List 1 might not have the address, and list 2 might, but focus on the main property name! If the name of the property is the same (even if address is only mentioned in one place), do NOT count it as a new property.
 
 List 1 (Firebase properties):
 {existing_properties}
