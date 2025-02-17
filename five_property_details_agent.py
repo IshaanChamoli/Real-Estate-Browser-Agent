@@ -71,7 +71,7 @@ async def process_property_listing(company_page: str, property_address: str, pro
             }
         
         # We don't need to parse the agent history - we know where the screenshots will be!
-        directory = create_directory(company_page, property_address)
+        directory = create_directory(company_page, property_number)
         
         return {
             "status": "success",
